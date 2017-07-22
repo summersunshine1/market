@@ -25,6 +25,10 @@ def get_train_data():
     del res
     return data
     
+def get_test_data(data):
+    test = data[[data['eval_set'] == 'test']]
+    print(test)
+    
 def get_item_importance(data):
     items = pd.DataFrame({'count':data.groupby(['user_id','product_id']).size()}).reset_index()
     user_items = pd.DataFrame({'totalcount':data.groupby(['user_id']).size()}).reset_index()
@@ -102,6 +106,11 @@ def analyze_main():
         i+=1
         del third
         
+def form_predict():
+    order = pd.read_csv(order_path, encoding = 'utf-8')
+    test = order[order['eval_set'] == 'test']
+    print(test)
+        
          
 if __name__=="__main__":
-    analyze_main()
+    form_predict()
