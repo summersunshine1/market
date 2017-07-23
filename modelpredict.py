@@ -20,13 +20,18 @@ def get_predict_order_feature():
     order_features = orders[['user_id','order_id','order_hour_of_day','days_since_prior_order']][orders['eval_set']=='test']
     return order_features
     
+def get_user_product_list(data):
+    total = pd.DataFrame({'totalcount':data.groupby(['user_id','product_id']).size()})
+    total.reset_index(['user_id','product_id'],inplace=True)
+    return total
+    
 def gettestdata():
     filelist = listfiles(combine_dir)
     clf = joblib.load(model_path)
     resdic ={}
     for file in filelist:
         data = get_data(file)
-        total = get_user_order_product_list(data)
+        total = get_user_product_list(data)
         users = get_user_feature(data)
         first = pd.merge(total,users,on='user_id')
         del users,total
@@ -37,7 +42,6 @@ def gettestdata():
         third = pd.merge(second,orders,on='user_id')
         del orders, second
         up_features = get_user_product_feature(data)
-        up_features.drop('order_id',1,inplace=True)
         fourth = pd.merge(up_features,third,on=['user_id','product_id'])
         del up_features,third
         features = ['user_total_items','average_days_between_orders','user_orders','average_items_num','total_distinct_items',
