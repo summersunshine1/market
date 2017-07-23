@@ -5,6 +5,9 @@ pardir = getparentdir()
 from commonLib import *
 from sklearn import linear_model
 from sklearn.model_selection import KFold
+from sklearn.metrics import f1_score
+from sklearn.externals import joblib
+from sklearn import preprocessing
 
 combine_dir = pardir+'/data/combine'
 order_path = pardir+'/data/orders.csv'
@@ -22,7 +25,7 @@ def get_user_feature(data):
     users['average_days_between_orders'] = orders.groupby('user_id')['days_since_prior_order'].mean().astype(np.float32)
     users['user_orders'] = orders.groupby('user_id').size().astype(np.int16)
     del orders
-    users['average_items_num'] = users.user_total_items/users.user_orders
+    users['average_items_num'] = round(users.user_total_items/users.user_orders,2)
     users['all_products'] = data.groupby('user_id')['product_id'].apply(set)
     users['total_distinct_items'] = (users.all_products.map(len)).astype(np.int16)
     users.reset_index(level=['user_id'],inplace = True)
@@ -33,7 +36,7 @@ def get_product_feature(data):
     products = pd.DataFrame()
     products['product_orders'] = data.groupby('product_id').size().astype(np.int32)
     products['reorders'] = data.groupby('product_id')['reordered'].sum().astype(np.int32)
-    products['reorder_ratio'] = products.reorders/products.product_orders
+    products['reorder_ratio'] = round(products.reorders/products.product_orders,2)
     products['add_to_cart_order'] = data.groupby('product_id')['add_to_cart_order'].mean().astype(np.float32)
     prods = prods.join(products,on='product_id')
     del products
@@ -78,9 +81,13 @@ def split_train_and_test(data):
     train_indexs = []
     test_indexs = []
     for train_index, test_index in kf.split(data):
+        # return train_index, test_index
         train_indexs.append(train_index)
         test_indexs.append(test_index)
     return train_indexs,test_indexs 
+    
+def f1_score1(y_true, y_predict):
+    return f1_score(y_true, y_predict)
 
 def factor_analyze_main():
     filelist = listfiles(combine_dir)
@@ -104,25 +111,39 @@ def factor_analyze_main():
         train_info = get_train_data()
         fourth['label'] = fourth["user_product"].isin(train_info).astype(int)
         del train_info
-        features = ['user_total_items','average_days_between_orders','user_orders','average_items_num','all_products','total_distinct_items',
-        'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_set','product_orders_num','add_cart_average',
+        features = ['user_total_items','average_days_between_orders','user_orders','average_items_num','total_distinct_items',
+        'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_num','add_cart_average',
         'average_order_num','label']
         finalfourth = fourth[features]
         del fourth
-        trainlist = finalfourth.values.tolist()
-        del finalfourth
-        train_indexs,test_indexs = split_train_and_test(finalfourth.values.tolist())
-        traindata = trainlist[train_indexs]
-        testdata = testlist[test_indexs]
+        # print(finalfourth)
+        trainlist = np.array(finalfourth.values.tolist())
+        train_data = trainlist[:,:-1]
+        process_train_data = preprocessing.scale(train_data)
+        label = trainlist[:,-1]
+        del finalfourth,train_data,trainlist
+        train_indexs,test_indexs = split_train_and_test(process_train_data)
+        l = len(train_indexs)
+        # for i in range(l):
+        i=0
+        traindata = process_train_data[train_indexs[i]]
+        testdata = process_train_data[test_indexs[i]]
+        train_label = label[train_indexs[i]]
+        test_label = label[test_indexs[i]]
         train = traindata[:,:-1]
-        train_label =  traindata[:,-1]
+        train_label =  train_label[:,-1]
         test = testdata[:,:-1]
-        test_label = testdata[:,-1]
-        print(train_label)
-        print(test_label)
-        break
-        
-        
+        test_label = test_label[:,-1]
+        del testdata,traindata
+        clf.partial_fit(train,train_label.ravel(),classes = [0,1])
+        predict = clf.predict(test)
+        print(predict)
+        score = f1_score1(test_label, predict)
+        print(score)
+        del trainlist 
+    path = pardir+'/model/lr.pkl'
+    joblib.dump(clf, path)
+    
 if __name__=="__main__":
     factor_analyze_main()
     
