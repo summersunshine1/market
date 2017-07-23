@@ -14,6 +14,8 @@ order_path = pardir+'/data/orders.csv'
 order_train_path = pardir + '/data/order_products__train.csv'
 product_path = pardir + '/data/products.csv'
 
+factor_path = pardir+'/data/factor.csv'
+
 def get_data(file):
     data = readData(file)
     return data
@@ -92,6 +94,7 @@ def f1_score1(y_true, y_predict):
 def factor_analyze_main():
     filelist = listfiles(combine_dir)
     clf = linear_model.SGDClassifier()
+    j = 0
     for file in filelist:
         data = get_data(file)
         total = get_user_order_product_list(data)
@@ -115,35 +118,39 @@ def factor_analyze_main():
         'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_num','add_cart_average',
         'average_order_num','label']
         finalfourth = fourth[features]
+        if j==0:
+            finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', index = False)
+        else:
+            finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', header=False, index = False)
+        j+=1
         del fourth
         # print(finalfourth)
         trainlist = np.array(finalfourth.values.tolist())
         train_data = trainlist[:,:-1]
-        process_train_data = preprocessing.scale(train_data)
+        # process_train_data = preprocessing.scale(train_data)
+        # print(process_train_data)
         label = trainlist[:,-1]
-        del finalfourth,train_data,trainlist
-        train_indexs,test_indexs = split_train_and_test(process_train_data)
+        del finalfourth,trainlist
+        # del train_data
+        train_indexs,test_indexs = split_train_and_test(train_data)
         l = len(train_indexs)
         # for i in range(l):
         i=0
-        traindata = process_train_data[train_indexs[i]]
-        testdata = process_train_data[test_indexs[i]]
+        traindata = train_data[train_indexs[i]]
+        testdata = train_data[test_indexs[i]]
         train_label = label[train_indexs[i]]
         test_label = label[test_indexs[i]]
         train = traindata[:,:-1]
-        train_label =  train_label[:,-1]
         test = testdata[:,:-1]
-        test_label = test_label[:,-1]
         del testdata,traindata
         clf.partial_fit(train,train_label.ravel(),classes = [0,1])
         predict = clf.predict(test)
         print(predict)
         score = f1_score1(test_label, predict)
         print(score)
-        del trainlist 
     path = pardir+'/model/lr.pkl'
     joblib.dump(clf, path)
-    
+
 if __name__=="__main__":
     factor_analyze_main()
     
