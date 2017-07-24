@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import pandas as pd
 import numpy as np
 from getPath import *
@@ -118,11 +119,11 @@ def factor_analyze_main():
         'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_num','add_cart_average',
         'average_order_num','label']
         finalfourth = fourth[features]
-        if j==0:
-            finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', index = False)
-        else:
-            finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', header=False, index = False)
-        j+=1
+        #if j==0:
+         #   finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', index = False)
+       # else:
+        #    finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', header=False, index = False)
+       # j+=1
         del fourth
         # print(finalfourth)
         trainlist = np.array(finalfourth.values.tolist())
@@ -140,11 +141,8 @@ def factor_analyze_main():
         testdata = train_data[test_indexs[i]]
         train_label = label[train_indexs[i]]
         test_label = label[test_indexs[i]]
-        train = traindata[:,:-1]
-        test = testdata[:,:-1]
-        del testdata,traindata
-        clf.partial_fit(train,train_label.ravel(),classes = [0,1])
-        predict = clf.predict(test)
+        clf.partial_fit(traindata,train_label.ravel(),classes = [0,1])
+        predict = clf.predict(testdata)
         print(predict)
         score = f1_score1(test_label, predict)
         print(score)

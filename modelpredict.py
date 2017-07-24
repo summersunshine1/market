@@ -18,6 +18,7 @@ def get_data(file):
 def get_predict_order_feature():
     orders = get_data(order_path)
     order_features = orders[['user_id','order_id','order_hour_of_day','days_since_prior_order']][orders['eval_set']=='test']
+    del orders
     return order_features
     
 def get_user_product_list(data):
@@ -25,6 +26,26 @@ def get_user_product_list(data):
     total.reset_index(['user_id','product_id'],inplace=True)
     return total
     
+def write_res_to_file(resdic):
+    orders = get_data(order_path)
+    order_ids = list(orders['order_id'][orders['eval_set']=='test'])
+    order_ids = sorted(order_ids)
+    del orders
+    resPath = pardir+'/data/res.csv'
+    fw = open(resPath, 'w', encoding = 'utf-8')
+    fw.writelines(','.join(['"order_id"', '"products"']) + '\n')
+    for order_id in order_ids:
+        if not order_id in resdic:
+            fw.writelines(','.join([str(order_id), "None"])+'\n')
+            continue
+        products = resdic[order_id]
+        products = sorted(products)
+        products = [str(p) for p in products]
+        proline = ' '.join(products)
+        line = ','.join([str(order_id), proline]) + '\n'
+        fw.writelines(line)
+    fw.close()
+
 def gettestdata():
     filelist = listfiles(combine_dir)
     clf = joblib.load(model_path)
@@ -64,7 +85,7 @@ def gettestdata():
             if not bought_oid in resdic:
                 resdic[bought_oid]=[]
             resdic[bought_oid].append(bought_product_ids[i])
-    print(resdic)
+    write_res_to_file(resdic)
     
 if __name__=="__main__":
     gettestdata()
