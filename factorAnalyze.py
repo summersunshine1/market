@@ -114,7 +114,7 @@ def factor_analyze_main():
         del up_features,third
         fourth['user_product'] = fourth[['user_id', 'product_id']].apply(tuple, axis=1)
         train_info = get_train_data()
-        fourth['label'] = fourth["user_product"].isin(train_info).astype(int8)
+        fourth['label'] = fourth["user_product"].isin(train_info).astype(int16)
         del train_info
         fourth['up_orders_ratio'] = fourth['user_product_num']/fourth['user_orders']
         fourth['up_orders_since_lastorder'] = fourth['user_orders']-fourth['max_order_num']
