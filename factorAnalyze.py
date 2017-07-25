@@ -15,7 +15,7 @@ order_path = pardir+'/data/orders.csv'
 order_train_path = pardir + '/data/order_products__train.csv'
 product_path = pardir + '/data/products.csv'
 
-factor_path = pardir+'/data/factor.csv'
+factor_path = pardir+'/data/factor1.csv'
 
 def get_data(file):
     data = readData(file)
@@ -28,7 +28,7 @@ def get_user_feature(data):
     users['average_days_between_orders'] = orders.groupby('user_id')['days_since_prior_order'].mean().astype(np.float32)
     users['user_orders'] = orders.groupby('user_id').size().astype(np.int16)
     del orders
-    users['average_items_num'] = round(users.user_total_items/users.user_orders,2)
+    users['average_items_num'] = round(users.user_total_items/users.user_orders,2).astype(np.float32)
     users['all_products'] = data.groupby('user_id')['product_id'].apply(set)
     users['total_distinct_items'] = (users.all_products.map(len)).astype(np.int16)
     users.reset_index(level=['user_id'],inplace = True)
@@ -39,7 +39,7 @@ def get_product_feature(data):
     products = pd.DataFrame()
     products['product_orders'] = data.groupby('product_id').size().astype(np.int32)
     products['reorders'] = data.groupby('product_id')['reordered'].sum().astype(np.int32)
-    products['reorder_ratio'] = round(products.reorders/products.product_orders,2)
+    products['reorder_ratio'] = round(products.reorders/products.product_orders,2).astype(np.float32)
     products['add_to_cart_order'] = data.groupby('product_id')['add_to_cart_order'].mean().astype(np.float32)
     prods = prods.join(products,on='product_id')
     del products
@@ -55,12 +55,13 @@ def get_user_product_feature(data):
     up_features['user_product_num'] = data.groupby(['user_id','product_id']).size().astype(np.int16)
     up_features['product_orders_set'] = data.groupby(['user_id','product_id'])['order_id'].apply(set)
     up_features['product_orders_num'] = (up_features.product_orders_set.map(len)).astype(np.int16)
+    
     up_features['add_cart_average'] = data.groupby(['user_id','product_id'])['add_to_cart_order'].mean().astype(np.float32)
     
-    up_features['min_order_num'] = data.groupby(['user_id','product_id'])['order_number'].min()
-    up_features['max_order_num'] = data.groupby(['user_id','product_id'])['order_number'].max()
-    up_features['average_order_num'] = (up_features['max_order_num']-up_features['min_order_num'])/up_features['product_orders_num']
-    up_features.drop(['min_order_num','max_order_num'],1,inplace=True)
+    up_features['min_order_num'] = data.groupby(['user_id','product_id'])['order_number'].min().astype(np.int16)
+    up_features['max_order_num'] = data.groupby(['user_id','product_id'])['order_number'].max().astype(np.int16)
+    up_features['average_order_num'] = ((up_features['max_order_num']-up_features['min_order_num'])/up_features['product_orders_num']).astype(np.float32)
+    # up_features.drop(['min_order_num','max_order_num'],1,inplace=True)
     up_features.reset_index(level=['user_id', 'product_id'],inplace = True)
     return up_features
     
@@ -80,7 +81,7 @@ def get_train_data():
     return data
     
 def split_train_and_test(data):
-    kf = KFold(n_splits=10,random_state=1,shuffle=True)
+    kf = KFold(n_splits=5,random_state=1,shuffle=True)
     train_indexs = []
     test_indexs = []
     for train_index, test_index in kf.split(data):
@@ -113,17 +114,21 @@ def factor_analyze_main():
         del up_features,third
         fourth['user_product'] = fourth[['user_id', 'product_id']].apply(tuple, axis=1)
         train_info = get_train_data()
-        fourth['label'] = fourth["user_product"].isin(train_info).astype(int)
+        fourth['label'] = fourth["user_product"].isin(train_info).astype(int8)
         del train_info
+        fourth['up_orders_ratio'] = fourth['user_product_num']/fourth['user_orders']
+        fourth['up_orders_since_lastorder'] = fourth['user_orders']-fourth['max_order_num']
+        fourth['up_orders_since_firstorder'] = fourth['user_orders']-fourth['min_order_num']
+        
         features = ['user_total_items','average_days_between_orders','user_orders','average_items_num','total_distinct_items',
         'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_num','add_cart_average',
-        'average_order_num','label']
+        'average_order_num','up_orders_ratio','up_orders_since_lastorder','up_orders_since_firstorder','label']
         finalfourth = fourth[features]
-        #if j==0:
-         #   finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', index = False)
-       # else:
-        #    finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', header=False, index = False)
-       # j+=1
+        if j==0:
+           finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', index = False)
+        else:
+           finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'a', header=False, index = False)
+        j+=1
         del fourth
         # print(finalfourth)
         trainlist = np.array(finalfourth.values.tolist())
@@ -135,17 +140,17 @@ def factor_analyze_main():
         # del train_data
         train_indexs,test_indexs = split_train_and_test(train_data)
         l = len(train_indexs)
-        # for i in range(l):
-        i=0
-        traindata = train_data[train_indexs[i]]
-        testdata = train_data[test_indexs[i]]
-        train_label = label[train_indexs[i]]
-        test_label = label[test_indexs[i]]
-        clf.partial_fit(traindata,train_label.ravel(),classes = [0,1])
-        predict = clf.predict(testdata)
-        print(predict)
-        score = f1_score1(test_label, predict)
-        print(score)
+        scores = []
+        for i in range(l):
+            traindata = train_data[train_indexs[i]]
+            testdata = train_data[test_indexs[i]]
+            train_label = label[train_indexs[i]]
+            test_label = label[test_indexs[i]]
+            clf.partial_fit(traindata,train_label.ravel(),classes = [0,1])
+            predict = clf.predict(testdata)
+            score = f1_score1(test_label, predict)
+            scores.append(score)
+        print(np.mean(scores))
     path = pardir+'/model/lr.pkl'
     joblib.dump(clf, path)
 
