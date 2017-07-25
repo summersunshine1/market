@@ -28,22 +28,25 @@ def TrainData():
     print("begin loop")
     i = 0
     clf = linear_model.SGDClassifier()
+    k = 0
     while loop:
         try:
             chunk = data.get_chunk(chunkSize)
             train,test = sampleTest(chunk)
-            trainvalue = np.array(train.values.to_list())
-            testvalue = np.array(test.values.to_list())
+            trainvalue = np.array(train.values.tolist())
+            testvalue = np.array(test.values.tolist())
             train_x = preprocessing.scale(trainvalue[:,:-1])
             train_y = trainvalue[:,-1]
             test_x = preprocessing.scale(testvalue[:,:-1])
             test_y = preprocessing.scale(testvalue[:,-1])
+      
             for i in range(50):
                 clf.partial_fit(train_x,train_y.ravel(),classes = [0,1])  
                 if i%10==0:
                     predict = clf.predict(test_x)
                     score = f1_score1(test_y, predict)
-                    print(str(i)+" iters" + str(score))
+                    print("chunk:"+str(k) +"and iters:"+str(i)+" "+ str(score))
+            k+=1
         except StopIteration:
             loop = False
     path = pardir+'/model/sgd.pkl' 
