@@ -9,7 +9,7 @@ from getPath import *
 pardir = getparentdir()
 from commonLib import *
 
-datapath = pardir + '/data/aisles.csv'
+datapath = pardir + '/data/factor1.csv'
 trainpath = pardir + '/data/train.csv'
 testpath = pardir + '/data/test.csv'
 
