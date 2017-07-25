@@ -130,6 +130,8 @@ def factor_analyze_main():
            finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'a', header=False, index = False)
         j+=1
         del fourth
+        del finalfourth
+        continue
         # print(finalfourth)
         trainlist = np.array(finalfourth.values.tolist())
         train_data = trainlist[:,:-1]
@@ -151,8 +153,8 @@ def factor_analyze_main():
             score = f1_score1(test_label, predict)
             scores.append(score)
         print(np.mean(scores))
-    path = pardir+'/model/lr.pkl'
-    joblib.dump(clf, path)
+    # path = pardir+'/model/lr.pkl'
+    # joblib.dump(clf, path)
 
 if __name__=="__main__":
     factor_analyze_main()
