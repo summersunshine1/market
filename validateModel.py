@@ -8,7 +8,9 @@ pardir = getparentdir()
 from commonLib import *
 
 testpath = pardir + '/data/test.csv'
-modelpath = pardir + '/model/sgd.pkl'
+modelpath = pardir + '/model/scalesgd.pkl'
+scaler_path = pardir+'model/scaler.save'
+logPath = pardir +'/data/log.txt'
 
 def validate(scale, clf):
     data = pd.read_csv(testpath, encoding = 'utf-8')
@@ -17,16 +19,21 @@ def validate(scale, clf):
     if scale == None:
         train = preprocessing.scale(dataarr[:,:-1])
     else:
-        train = scaler.transform(dataarr[:,:-1])
+        train = scale.transform(dataarr[:,:-1])
     label = dataarr[:,-1]
     del dataarr
+    f = open(logPath, 'a', encoding='utf-8')
     predict = clf.predict(train)
+    f.writelines(str(predict)+'\n')
     score = f1_score1(label, predict)
-    print(score)
+    f.close()
+    return score
     
 if __name__=="__main__":
     clf = joblib.load(modelpath)
-    validate(None, clf)
+    scale = joblib.load(scaler_path)
+    score = validate(scale, clf)
+    print(score)
     
     
     

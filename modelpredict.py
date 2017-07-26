@@ -7,9 +7,10 @@ from commonLib import *
 from sklearn import linear_model
 from factorAnalyze import *
 
-model_path = pardir+'/model/lr.pkl'
+model_path = pardir+'/model/scalesgd.pkl'
 combine_dir = pardir+'/data/combine'
 order_path = pardir+'/data/orders.csv'
+scalerpath = pardir + '/model/scaler.save'
 
 def get_data(file):
     data = readData(file)
@@ -49,6 +50,7 @@ def write_res_to_file(resdic):
 def gettestdata():
     filelist = listfiles(combine_dir)
     clf = joblib.load(model_path)
+    scaler = joblib.load(scalerpath)
     resdic ={}
     for file in filelist:
         data = get_data(file)
@@ -65,15 +67,19 @@ def gettestdata():
         up_features = get_user_product_feature(data)
         fourth = pd.merge(up_features,third,on=['user_id','product_id'])
         del up_features,third
+        fourth['up_orders_ratio'] = fourth['user_product_num']/fourth['user_orders']
+        fourth['up_orders_since_lastorder'] = fourth['user_orders']-fourth['max_order_num']
+        fourth['up_orders_since_firstorder'] = fourth['user_orders']-fourth['min_order_num']
         features = ['user_total_items','average_days_between_orders','user_orders','average_items_num','total_distinct_items',
         'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_num','add_cart_average',
-        'average_order_num']
+        'average_order_num','up_orders_ratio','up_orders_since_lastorder','up_orders_since_firstorder']
         # print(fourth.head())
         finalfourth = fourth[features]
         order_id = np.array(list(fourth['order_id']))
         product_id = np.array(list(fourth['product_id']))
         del fourth
         trainlist = finalfourth.values.tolist()
+        trainlist = scaler.transform(trainlist)
         del finalfourth
         predict = clf.predict(trainlist)
         index = np.where(predict==1)
