@@ -23,12 +23,8 @@ features = ['user_total_items','average_days_between_orders','user_orders','aver
 def sampleTest(list):
     X_train, X_test= train_test_split(list, test_size=0.25,random_state=2)
     return X_train,X_test
-    
-def f1_score1(y_true, y_predict):
-    return f1_score(y_true, y_predict)
 
 def TrainData():
-    
     data = pd.read_csv(data_path, encoding = 'utf-8',iterator=True)
     loop = True
     chunkSize = 10000
