@@ -9,13 +9,14 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import f1_score
 from sklearn.externals import joblib
 from sklearn import preprocessing
+from onehotencoder import *
 
 combine_dir = pardir+'/data/combine'
 order_path = pardir+'/data/orders.csv'
 order_train_path = pardir + '/data/order_products__train.csv'
 product_path = pardir + '/data/products.csv'
 
-factor_path = pardir+'/data/factor2.csv'
+factor_path = pardir+'/data/factor4.csv'
 
 def get_data(file):
     data = readData(file)
@@ -45,9 +46,23 @@ def get_product_feature(data):
     del products
     return prods
     
+    
 def get_order_feature():
     orders = get_data(order_path)
-    order_features = orders[['order_id','order_hour_of_day','days_since_prior_order']]
+    # order_features = orders['order_id']#,'order_hour_of_day','order_dow','days_since_prior_order']]
+    order_hour = encodetime(24)
+    order_dow = encodetime(7)
+    attr = []
+    order_features = pd.DataFrame()
+    for i in range(24+7):
+        attr.append(str(i))
+        order_features[str(i)] = 0
+    order_hours = np.array([order_hour[o] for o in orders['order_hour_of_day']])
+    order_dows = np.array([order_dow[o] for o in orders['order_dow']])
+    total = np.hstack((order_hours,order_dows))
+    order_features[attr] = total
+    order_features['order_id'] = orders['order_id']
+    del orders
     return order_features
     
 def get_user_product_feature(data):
@@ -122,7 +137,10 @@ def factor_analyze_main():
         
         features = ['user_id','product_id','order_id','user_total_items','average_days_between_orders','user_orders','average_items_num','total_distinct_items',
         'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_num','add_cart_average',
-        'average_order_num','up_orders_ratio','up_orders_since_lastorder','up_orders_since_firstorder','days_since_prior_order','order_hour_of_day','label']
+        'average_order_num','up_orders_ratio','up_orders_since_lastorder','up_orders_since_firstorder','days_since_prior_order']
+        for i in range(24+7):
+            features.append(str(i))
+        features.append('label')
         finalfourth = fourth[features]
         if j==0:
            finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', index = False)
