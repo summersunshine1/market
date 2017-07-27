@@ -19,11 +19,7 @@ def train_model():
     watchlist = [(dtest,'eval'), (dtrain,'train')]
     bst = xgb.train(param, dtrain, num_round,watchlist)
     bst.save_model(pardir+'/model/xgb.model')
-    clf = xgb.XGBClassifier()
-    clf.fit(train, ans_train, eval_metric=xgb_f1,
-                    eval_set=[(train, ans_train), (test, y_test)],
-                    early_stopping_rounds=900)
-        y_pred = clf.predict(test)
-        predictions.append(y_pred)
-        scores.append(f1_score(y_test, y_pred))
+    print(bst)
+    
+train_model()
 
