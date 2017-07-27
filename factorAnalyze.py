@@ -15,7 +15,7 @@ order_path = pardir+'/data/orders.csv'
 order_train_path = pardir + '/data/order_products__train.csv'
 product_path = pardir + '/data/products.csv'
 
-factor_path = pardir+'/data/factor1.csv'
+factor_path = pardir+'/data/factor2.csv'
 
 def get_data(file):
     data = readData(file)
@@ -120,9 +120,9 @@ def factor_analyze_main():
         fourth['up_orders_since_lastorder'] = fourth['user_orders']-fourth['max_order_num']
         fourth['up_orders_since_firstorder'] = fourth['user_orders']-fourth['min_order_num']
         
-        features = ['user_total_items','average_days_between_orders','user_orders','average_items_num','total_distinct_items',
+        features = ['user_id','product_id','order_id','user_total_items','average_days_between_orders','user_orders','average_items_num','total_distinct_items',
         'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_num','add_cart_average',
-        'average_order_num','up_orders_ratio','up_orders_since_lastorder','up_orders_since_firstorder','label']
+        'average_order_num','up_orders_ratio','up_orders_since_lastorder','up_orders_since_firstorder','days_since_prior_order','order_hour_of_day','label']
         finalfourth = fourth[features]
         if j==0:
            finalfourth.to_csv(factor_path,encoding='utf-8',mode = 'w', index = False)
