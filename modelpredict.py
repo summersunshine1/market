@@ -6,22 +6,42 @@ pardir = getparentdir()
 from commonLib import *
 from sklearn import linear_model
 from factorAnalyze import *
+import pickle
+import xgboost as xgb
+from onehotencoder import *
+from sklearn.datasets import dump_svmlight_file
 
-model_path = pardir+'/model/scalesgd.pkl'
+model_path = pardir+'/model/xgb.model'
 combine_dir = pardir+'/data/combine'
 order_path = pardir+'/data/orders.csv'
 scalerpath = pardir + '/model/scaler.save'
+testsvmpath = pardir+'/data/libsvm/finaltest'
+testsvmcache = pardir+'/data/libsvm/finaltest#dtest.cache'
 
 def get_data(file):
     data = readData(file)
     return data
     
 def get_predict_order_feature():
-    orders = get_data(order_path)
-    order_features = orders[['user_id','order_id','order_hour_of_day','days_since_prior_order']][orders['eval_set']=='test']
+    order_hour = encodetime(24)
+    order_dow = encodetime(7)
+    attr = []
+    order_features = pd.DataFrame()
+    for i in range(24+7):
+        attr.append(str(i))
+        order_features[str(i)] = 0
+    orders = get_data(order_path)  
+    temp = orders[['user_id','order_id','order_dow','order_hour_of_day','days_since_prior_order']][orders['eval_set']=='test']
     del orders
+    order_hours = np.array([order_hour[o] for o in temp['order_hour_of_day']])
+    order_dows = np.array([order_dow[o] for o in temp['order_dow']])
+    total = np.hstack((order_hours,order_dows))
+    order_features[attr] = total
+    order_features['order_id'] = temp['order_id']
+    order_features['user_id'] = temp['user_id']
+    del temp
     return order_features
-    
+
 def get_user_product_list(data):
     total = pd.DataFrame({'totalcount':data.groupby(['user_id','product_id']).size()})
     total.reset_index(['user_id','product_id'],inplace=True)
@@ -47,10 +67,19 @@ def write_res_to_file(resdic):
         fw.writelines(line)
     fw.close()
 
+def writelibsvm(trainlist):
+    samplenum = np.shape(trainlist)[0]
+    y = []
+    for i in range(samplenum):
+        y.append(-1)
+    dump_svmlight_file(trainlist, y,testsvmpath, zero_based=True,query_id=None)
+    del trainlist,y
+
 def gettestdata():
     filelist = listfiles(combine_dir)
-    clf = joblib.load(model_path)
-    scaler = joblib.load(scalerpath)
+    # clf = joblib.load(model_path)
+    # scaler = joblib.load(scalerpath)
+    clf = xgb.Booster(model_file=model_path)
     resdic ={}
     for file in filelist:
         data = get_data(file)
@@ -73,15 +102,20 @@ def gettestdata():
         features = ['user_total_items','average_days_between_orders','user_orders','average_items_num','total_distinct_items',
         'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_num','add_cart_average',
         'average_order_num','up_orders_ratio','up_orders_since_lastorder','up_orders_since_firstorder']
+        print(fourth.columns.values)
+        for i in range(24+7):
+            features.append(str(i))
         # print(fourth.head())
         finalfourth = fourth[features]
         order_id = np.array(list(fourth['order_id']))
         product_id = np.array(list(fourth['product_id']))
         del fourth
         trainlist = finalfourth.values.tolist()
-        trainlist = scaler.transform(trainlist)
         del finalfourth
-        predict = clf.predict(trainlist)
+        trainlist = np.nan_to_num(trainlist)
+        writelibsvm(trainlist)
+        dtest = xgb.DMatrix(testsvmcache)
+        predict = clf.predict(dtest)
         index = np.where(predict==1)
         bought_order_ids = order_id[index]
         bought_product_ids = product_id[index]
