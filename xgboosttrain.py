@@ -27,7 +27,7 @@ def train_model():
     bst.save_model(pardir+'/model/xgb.model')
     print(bst)
     y_pred = bst.predict(dtest)
-    print(f1_score(y_pred, dtest))
+    print(f1_score1(y_pred, dtest))
     
 train_model()
 

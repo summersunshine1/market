@@ -10,13 +10,13 @@ import pickle
 import xgboost as xgb
 from onehotencoder import *
 from sklearn.datasets import dump_svmlight_file
+import os
 
-model_path = pardir+'/model/xgb.model'
+model_path = pardir+'/model/xgb1.model'
 combine_dir = pardir+'/data/combine'
 order_path = pardir+'/data/orders.csv'
 scalerpath = pardir + '/model/scaler.save'
 testsvmpath = pardir+'/data/libsvm/finaltest'
-testsvmcache = pardir+'/data/libsvm/finaltest#dtest.cache'
 
 def get_data(file):
     data = readData(file)
@@ -72,8 +72,14 @@ def writelibsvm(trainlist):
     y = []
     for i in range(samplenum):
         y.append(-1)
+    if os.path.exists(testsvmpath):
+        os.remove(testsvmpath)
     dump_svmlight_file(trainlist, y,testsvmpath, zero_based=True,query_id=None)
     del trainlist,y
+    
+def convertPredict(predict):
+    y_bin = np.array([1 if y_cont > 0.5 else 0 for y_cont in predict])
+    return y_bin
 
 def gettestdata():
     filelist = listfiles(combine_dir)
@@ -102,21 +108,25 @@ def gettestdata():
         features = ['user_total_items','average_days_between_orders','user_orders','average_items_num','total_distinct_items',
         'product_orders','reorders','reorder_ratio','add_to_cart_order','user_product_num','product_orders_num','add_cart_average',
         'average_order_num','up_orders_ratio','up_orders_since_lastorder','up_orders_since_firstorder']
-        print(fourth.columns.values)
         for i in range(24+7):
             features.append(str(i))
         # print(fourth.head())
         finalfourth = fourth[features]
         order_id = np.array(list(fourth['order_id']))
+        print(len(order_id))
         product_id = np.array(list(fourth['product_id']))
         del fourth
         trainlist = finalfourth.values.tolist()
         del finalfourth
         trainlist = np.nan_to_num(trainlist)
+        print(np.shape(trainlist))
         writelibsvm(trainlist)
-        dtest = xgb.DMatrix(testsvmcache)
+        dtest = xgb.DMatrix(testsvmpath)
         predict = clf.predict(dtest)
-        index = np.where(predict==1)
+        predicts = convertPredict(predict)
+        del predict
+        index = np.where(predicts==1)
+        del predicts
         bought_order_ids = order_id[index]
         bought_product_ids = product_id[index]
         l = len(bought_order_ids)
